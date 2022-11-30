@@ -12,12 +12,12 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"errors"
-	"io/ioutil"
 	"math/big"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"reflect"
 	"regexp"
 	"sort"
@@ -31,8 +31,9 @@ import (
 	"github.com/cloudflare/cfssl/helpers"
 	"github.com/cloudflare/cfssl/log"
 	"github.com/cloudflare/cfssl/signer"
+
 	"github.com/google/certificate-transparency-go"
-	"github.com/zmap/zlint/v2/lint"
+	"github.com/zmap/zlint/v3/lint"
 )
 
 const (
@@ -215,13 +216,13 @@ func TestSign(t *testing.T) {
 	}
 
 	// not a csr
-	certPem, err := ioutil.ReadFile("../../helpers/testdata/cert.pem")
+	certPem, err := os.ReadFile("../../helpers/testdata/cert.pem")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// csr with ip as hostname
-	pem, err := ioutil.ReadFile("testdata/ip.csr")
+	pem, err := os.ReadFile("testdata/ip.csr")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -239,7 +240,7 @@ func TestSign(t *testing.T) {
 		t.Fatal("A bad case failed to raise an error")
 	}
 
-	pem, err = ioutil.ReadFile("testdata/ex.csr")
+	pem, err = os.ReadFile("testdata/ex.csr")
 	validReq = signer.SignRequest{
 		Request: string(pem),
 		Hosts:   []string{"example.com"},
@@ -295,7 +296,7 @@ const (
 func testSignFile(t *testing.T, certFile string) ([]byte, error) {
 	s := newTestSigner(t)
 
-	pem, err := ioutil.ReadFile(certFile)
+	pem, err := os.ReadFile(certFile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -375,7 +376,7 @@ func TestSignCSRs(t *testing.T) {
 	s := newTestSigner(t)
 	hostname := "cloudflare.com"
 	for _, test := range csrTests {
-		csr, err := ioutil.ReadFile(test.file)
+		csr, err := os.ReadFile(test.file)
 		if err != nil {
 			t.Fatal("CSR loading error:", err)
 		}
@@ -403,7 +404,7 @@ func TestECDSASigner(t *testing.T) {
 	s := newCustomSigner(t, testECDSACaFile, testECDSACaKeyFile)
 	hostname := "cloudflare.com"
 	for _, test := range csrTests {
-		csr, err := ioutil.ReadFile(test.file)
+		csr, err := os.ReadFile(test.file)
 		if err != nil {
 			t.Fatal("CSR loading error:", err)
 		}
@@ -455,7 +456,7 @@ func TestCAIssuing(t *testing.T) {
 		s := newCustomSigner(t, caFile, caKeyFile)
 		s.policy = CAPolicy
 		for j, csr := range interCSRs {
-			csrBytes, _ := ioutil.ReadFile(csr)
+			csrBytes, _ := os.ReadFile(csr)
 			certBytes, err := s.Sign(signer.SignRequest{Hosts: signer.SplitHosts(hostname), Request: string(csrBytes)})
 			if err != nil {
 				t.Fatal(err)
@@ -464,7 +465,7 @@ func TestCAIssuing(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			keyBytes, _ := ioutil.ReadFile(interKeys[j])
+			keyBytes, _ := os.ReadFile(interKeys[j])
 			interKey, _ := helpers.ParsePrivateKeyPEM(keyBytes)
 			interSigner := &Signer{
 				ca:      interCert,
@@ -473,7 +474,7 @@ func TestCAIssuing(t *testing.T) {
 				sigAlgo: signer.DefaultSigAlgo(interKey),
 			}
 			for _, anotherCSR := range interCSRs {
-				anotherCSRBytes, _ := ioutil.ReadFile(anotherCSR)
+				anotherCSRBytes, _ := os.ReadFile(anotherCSR)
 				bytes, err := interSigner.Sign(
 					signer.SignRequest{
 						Hosts:   signer.SplitHosts(hostname),
@@ -570,7 +571,7 @@ func TestPopulateSubjectFromCSR(t *testing.T) {
 
 }
 func TestOverrideSubject(t *testing.T) {
-	csrPEM, err := ioutil.ReadFile(fullSubjectCSR)
+	csrPEM, err := os.ReadFile(fullSubjectCSR)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -630,7 +631,7 @@ func TestOverrideSubject(t *testing.T) {
 
 func TestOverwriteHosts(t *testing.T) {
 	for _, csrFile := range []string{testCSR, testSANCSR} {
-		csrPEM, err := ioutil.ReadFile(csrFile)
+		csrPEM, err := os.ReadFile(csrFile)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -708,7 +709,7 @@ func TestOverwriteHosts(t *testing.T) {
 }
 
 func TestOverrideValidity(t *testing.T) {
-	csrPEM, err := ioutil.ReadFile(fullSubjectCSR)
+	csrPEM, err := os.ReadFile(fullSubjectCSR)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -910,7 +911,7 @@ func TestCASignPathlen(t *testing.T) {
 	}
 
 	for _, testCase := range csrPathlenTests {
-		csrPEM, err := ioutil.ReadFile(testCase.csrFile)
+		csrPEM, err := os.ReadFile(testCase.csrFile)
 		if err != nil {
 			t.Fatalf("%v", err)
 		}
@@ -970,7 +971,7 @@ func TestCASignPathlen(t *testing.T) {
 }
 
 func TestNoWhitelistSign(t *testing.T) {
-	csrPEM, err := ioutil.ReadFile(fullSubjectCSR)
+	csrPEM, err := os.ReadFile(fullSubjectCSR)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -1025,7 +1026,7 @@ func TestNoWhitelistSign(t *testing.T) {
 }
 
 func TestWhitelistSign(t *testing.T) {
-	csrPEM, err := ioutil.ReadFile(fullSubjectCSR)
+	csrPEM, err := os.ReadFile(fullSubjectCSR)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -1094,7 +1095,7 @@ func TestWhitelistSign(t *testing.T) {
 }
 
 func TestNameWhitelistSign(t *testing.T) {
-	csrPEM, err := ioutil.ReadFile(fullSubjectCSR)
+	csrPEM, err := os.ReadFile(fullSubjectCSR)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -1166,7 +1167,7 @@ func TestNameWhitelistSign(t *testing.T) {
 }
 
 func TestExtensionSign(t *testing.T) {
-	csrPEM, err := ioutil.ReadFile(testCSR)
+	csrPEM, err := os.ReadFile(testCSR)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -1276,7 +1277,7 @@ func TestCTFailure(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 	var pem []byte
-	pem, err = ioutil.ReadFile("testdata/ex.csr")
+	pem, err = os.ReadFile("testdata/ex.csr")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -1313,7 +1314,7 @@ func TestCTSuccess(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 	var pem []byte
-	pem, err = ioutil.ReadFile("testdata/ex.csr")
+	pem, err = os.ReadFile("testdata/ex.csr")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -1341,7 +1342,7 @@ func TestReturnPrecert(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	csr, err := ioutil.ReadFile("testdata/ex.csr")
+	csr, err := os.ReadFile("testdata/ex.csr")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -1574,8 +1575,8 @@ func TestLint(t *testing.T) {
 			lintErrLevel: lint.Notice,
 			expectedErr:  errors.New("pre-issuance linting found 2 error results"),
 			expectedErrResults: map[string]lint.LintResult{
-				"e_sub_cert_aia_does_not_contain_ocsp_url": lint.LintResult{Status: 6},
-				"e_dnsname_not_valid_tld":                  lint.LintResult{Status: 6},
+				"e_sub_cert_aia_does_not_contain_ocsp_url": {Status: 6},
+				"e_dnsname_not_valid_tld":                  {Status: 6},
 			},
 		},
 		{
@@ -1584,8 +1585,8 @@ func TestLint(t *testing.T) {
 			lintErrLevel: lint.Warn,
 			expectedErr:  errors.New("pre-issuance linting found 2 error results"),
 			expectedErrResults: map[string]lint.LintResult{
-				"e_sub_cert_aia_does_not_contain_ocsp_url": lint.LintResult{Status: 6},
-				"e_dnsname_not_valid_tld":                  lint.LintResult{Status: 6},
+				"e_sub_cert_aia_does_not_contain_ocsp_url": {Status: 6},
+				"e_dnsname_not_valid_tld":                  {Status: 6},
 			},
 		},
 		{
@@ -1595,7 +1596,7 @@ func TestLint(t *testing.T) {
 			lintRegistry: ignoredLintNameRegistry,
 			expectedErr:  errors.New("pre-issuance linting found 1 error results"),
 			expectedErrResults: map[string]lint.LintResult{
-				"e_sub_cert_aia_does_not_contain_ocsp_url": lint.LintResult{Status: 6},
+				"e_sub_cert_aia_does_not_contain_ocsp_url": {Status: 6},
 			},
 		},
 		{
